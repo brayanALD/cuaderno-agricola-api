@@ -51,10 +51,11 @@ function escrituras(
   coleccionDe: ColeccionDe,
 ): Pick<Almacen, 'guardar' | 'marcarBorrado'> {
   return {
-    guardar(uid, coleccion, id, campos, ahora) {
+    guardar(uid, coleccion, id, campos, ahora, verificar) {
       const referencia = coleccionDe(uid, coleccion).doc(id);
       return db.runTransaction(async (transaccion) => {
         const previo = await transaccion.get(referencia);
+        verificar?.(previo.exists ? aDocumento(id, previo.data() ?? {}) : null);
         const creado: unknown = previo.exists ? previo.get('created_at') : undefined;
         const documento = aDocumento(id, {
           ...campos,

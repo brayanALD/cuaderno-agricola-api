@@ -4,6 +4,7 @@ import { cicloSchema } from '@/schemas/ciclo';
 import { consultaSchema, idSchema } from '@/schemas/consulta';
 import { laborSchema } from '@/schemas/labor';
 import { loteSchema } from '@/schemas/lote';
+import { baseSchema, verificadorDeBase } from '@/schemas/version';
 
 type Deps = Pick<Dependencias, 'almacen' | 'ahora'>;
 
@@ -51,12 +52,13 @@ async function guardarLote(
   cuerpo: unknown,
 ): Promise<Documento> {
   const datos = loteSchema.parse(cuerpo);
+  const verificar = verificadorDeBase(baseSchema.parse(cuerpo).base_updated_at, datos);
   const vivos = await deps.almacen.buscar(uid, 'lote', { deleted_at: null });
   const repetido = vivos.some(
     (otro) => otro.id !== id && claveDeNombre(String(otro.nombre)) === claveDeNombre(datos.nombre),
   );
   if (repetido) throw new ErrorHttp(409, 'Ya existe un lote con ese nombre.');
-  return deps.almacen.guardar(uid, 'lote', id, datos, deps.ahora());
+  return deps.almacen.guardar(uid, 'lote', id, datos, deps.ahora(), verificar);
 }
 
 const invalido = (campo: string, mensaje: string) =>
@@ -69,12 +71,13 @@ async function guardarLabor(
   cuerpo: unknown,
 ): Promise<Documento> {
   const datos = laborSchema.parse(cuerpo);
+  const verificar = verificadorDeBase(baseSchema.parse(cuerpo).base_updated_at, datos);
   const lote = await deps.almacen.obtener(uid, 'lote', datos.lote_id);
   if (lote === null || lote.deleted_at !== null) throw invalido('lote_id', 'El lote no existe.');
   if (datos.tipo === 'cosecha' && datos.fecha < String(lote.fecha_siembra)) {
     throw invalido('fecha', 'La cosecha no puede ser anterior a la siembra.');
   }
-  return deps.almacen.guardar(uid, 'labor', id, datos, deps.ahora());
+  return deps.almacen.guardar(uid, 'labor', id, datos, deps.ahora(), verificar);
 }
 
 /** Un ciclo cerrado pertenece a un lote propio que exista (aunque esté borrado: es su historial). */

@@ -153,6 +153,11 @@ Propósito: aceptar finca, producto, carencia, costo y el recurso `ciclos` sin r
 Evidencia: `src/schemas/opcionales.ts`, `ciclo.ts`, `app/api/ciclos/**`, `sincronizacionService`, `produccionService`.
 Validación: `npm run check` en verde (163 pruebas). Sin desplegar todavía.
 
+## 2026-11-16 · Resiliencia en campo B1 y B3 (D94, D95)
+Propósito: control de versión opcional (409 por conflicto) y envío por lotes `POST /api/sync`.
+Evidencia: `src/schemas/version.ts`, `src/services/cambiosService.ts`, `app/api/sync/route.ts`, `Almacen.guardar(..., verificar)`.
+Validación: `npm run check` en verde (185 pruebas). La comprobación atómica en Firestore (`almacenFirestore`) solo se puede probar con el emulador o desplegado. Sin desplegar todavía.
+
 ## Plantilla para próximas entradas
 
 ```text

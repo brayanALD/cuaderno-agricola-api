@@ -132,8 +132,10 @@ export class AlmacenEnMemoria implements Almacen {
     id: string,
     campos: Record<string, unknown>,
     ahora: string,
+    verificar?: (previo: Documento | null) => void,
   ) {
     const previo = this.documentos.get(this.clave(uid, coleccion, id));
+    verificar?.(previo ?? null);
     const documento: Documento = {
       ...campos,
       id,

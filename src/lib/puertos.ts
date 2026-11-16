@@ -65,13 +65,18 @@ export interface Almacen {
   ): Promise<Documento[]>;
   obtener(uid: string, coleccion: Coleccion, id: string): Promise<Documento | null>;
   buscar(uid: string, coleccion: Coleccion, filtros: Filtros): Promise<Documento[]>;
-  /** Crea o reemplaza (idempotente): conserva `created_at`, fija `updated_at` y `deleted_at = null`. */
+  /**
+   * Crea o reemplaza (idempotente): conserva `created_at`, fija `updated_at` y `deleted_at = null`.
+   * `verificar` (opcional) recibe el documento previo (o `null`) DENTRO de la misma transacción y puede
+   * lanzar para impedir la escritura: así la comprobación de versión (D94) y la escritura son una sola operación.
+   */
   guardar(
     uid: string,
     coleccion: Coleccion,
     id: string,
     campos: Readonly<Record<string, unknown>>,
     ahora: string,
+    verificar?: (previo: Documento | null) => void,
   ): Promise<Documento>;
   /** Borrado lógico; `false` si el documento no existe. */
   marcarBorrado(uid: string, coleccion: Coleccion, id: string, ahora: string): Promise<boolean>;

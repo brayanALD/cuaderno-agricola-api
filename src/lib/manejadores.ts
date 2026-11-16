@@ -9,6 +9,7 @@ import {
   registrar,
 } from '@/services/authService';
 import { borrarImagen, subirImagen, TAMANO_MAXIMO_IMAGEN } from '@/services/imagenesService';
+import { aplicarCambios } from '@/services/cambiosService';
 import { produccionDeLote } from '@/services/produccionService';
 import { borrar, guardar, listar, type Recurso } from '@/services/sincronizacionService';
 
@@ -88,6 +89,9 @@ export function crearManejadores(obtener: ObtenerDependencias) {
       privada<{ id: string }>(obtener, async ({ deps, identidad, params }) =>
         json(await borrar(deps, identidad.uid, recurso, params.id)),
       ),
+    cambios: privada(obtener, async ({ deps, request, identidad }) =>
+      json(await aplicarCambios(deps, identidad.uid, await leerJson(request))),
+    ),
     produccion: privada<{ id: string }>(obtener, async ({ deps, identidad, params }) =>
       json(await produccionDeLote(deps, identidad.uid, params.id)),
     ),
