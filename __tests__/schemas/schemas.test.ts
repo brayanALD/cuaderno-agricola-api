@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { credencialesSchema, refreshSchema } from '@/schemas/auth';
+import { cicloSchema } from '@/schemas/ciclo';
 import { consultaSchema, idSchema } from '@/schemas/consulta';
 import { laborSchema } from '@/schemas/labor';
 import { loteSchema } from '@/schemas/lote';
@@ -101,6 +102,7 @@ describe('loteSchema (secciones 7 y 9.4)', () => {
       'area_m2',
       'cultivo',
       'fecha_siembra',
+      'finca',
       'lat',
       'lng',
       'nombre',
@@ -145,5 +147,76 @@ describe('laborSchema (sección 9.4)', () => {
 
     expect(r.success && r.data.foto_url).toContain('https://');
     expect(r.success && 'uid' in r.data).toBe(false);
+  });
+});
+
+describe('campos añadidos sin romper a los clientes antiguos (D93)', () => {
+  it('un lote sin `finca` (APK antiguo) se acepta y la guarda como null', () => {
+    const r = loteSchema.safeParse(lote);
+
+    expect(r.success && r.data.finca).toBeNull();
+  });
+
+  it('la finca se recorta; vacía es null; más de 60 caracteres se rechaza', () => {
+    expect(loteSchema.parse({ ...lote, finca: '  La Aurora ' }).finca).toBe('La Aurora');
+    expect(loteSchema.parse({ ...lote, finca: '   ' }).finca).toBeNull();
+    expect(campos(loteSchema.safeParse({ ...lote, finca: 'x'.repeat(61) }))).toEqual(['finca']);
+  });
+
+  it('una labor sin producto, carencia ni costo (APK antiguo) los guarda como null', () => {
+    const r = laborSchema.safeParse(labor);
+
+    expect(r.success && [r.data.producto, r.data.carencia_dias, r.data.costo]).toEqual([
+      null,
+      null,
+      null,
+    ]);
+  });
+
+  it('acepta producto, carencia en días enteros (0..365) y costo no negativo', () => {
+    const r = laborSchema.parse({
+      ...labor,
+      producto: ' Mancozeb ',
+      carencia_dias: 21,
+      costo: 35000,
+    });
+
+    expect([r.producto, r.carencia_dias, r.costo]).toEqual(['Mancozeb', 21, 35000]);
+  });
+
+  it.each([
+    ['carencia negativa', { carencia_dias: -1 }, 'carencia_dias'],
+    ['carencia con decimales', { carencia_dias: 1.5 }, 'carencia_dias'],
+    ['carencia de más de un año', { carencia_dias: 366 }, 'carencia_dias'],
+    ['costo negativo', { costo: -1 }, 'costo'],
+    ['producto muy largo', { producto: 'x'.repeat(61) }, 'producto'],
+  ])('rechaza %s', (_nombre, cambios, campo) => {
+    expect(campos(laborSchema.safeParse({ ...labor, ...cambios }))).toEqual([campo]);
+  });
+});
+
+describe('cicloSchema (D93)', () => {
+  const ciclo = {
+    lote_id: 'lote-1',
+    cultivo: 'Café',
+    fecha_inicio: '2026-01-10',
+    fecha_fin: '2026-08-15',
+    total_kg: 320.5,
+  };
+
+  it('acepta un ciclo cerrado y descarta campos extra', () => {
+    const r = cicloSchema.safeParse({ ...ciclo, uid: 'otro' });
+
+    expect(r.success && r.data).toEqual(ciclo);
+  });
+
+  it.each([
+    ['fin antes del inicio', { fecha_fin: '2026-01-09' }, 'fecha_fin'],
+    ['fecha inexistente', { fecha_inicio: '2026-02-30' }, 'fecha_inicio'],
+    ['total negativo', { total_kg: -1 }, 'total_kg'],
+    ['cultivo vacío', { cultivo: '  ' }, 'cultivo'],
+    ['lote_id con barra', { lote_id: 'a/b' }, 'lote_id'],
+  ])('rechaza %s', (_nombre, cambios, campo) => {
+    expect(campos(cicloSchema.safeParse({ ...ciclo, ...cambios }))).toEqual([campo]);
   });
 });

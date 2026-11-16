@@ -1,12 +1,13 @@
 import { ErrorHttp } from '@/lib/errores';
 import type { Coleccion, Dependencias, Documento } from '@/lib/puertos';
+import { cicloSchema } from '@/schemas/ciclo';
 import { consultaSchema, idSchema } from '@/schemas/consulta';
 import { laborSchema } from '@/schemas/labor';
 import { loteSchema } from '@/schemas/lote';
 
 type Deps = Pick<Dependencias, 'almacen' | 'ahora'>;
 
-const COLECCIONES = { lotes: 'lote', labores: 'labor' } as const;
+const COLECCIONES = { lotes: 'lote', labores: 'labor', ciclos: 'ciclo' } as const;
 export type Recurso = keyof typeof COLECCIONES;
 export const esRecurso = (texto: string): texto is Recurso => texto in COLECCIONES;
 
@@ -76,6 +77,21 @@ async function guardarLabor(
   return deps.almacen.guardar(uid, 'labor', id, datos, deps.ahora());
 }
 
+/** Un ciclo cerrado pertenece a un lote propio que exista (aunque esté borrado: es su historial). */
+async function guardarCiclo(
+  deps: Deps,
+  uid: string,
+  id: string,
+  cuerpo: unknown,
+): Promise<Documento> {
+  const datos = cicloSchema.parse(cuerpo);
+  const lote = await deps.almacen.obtener(uid, 'lote', datos.lote_id);
+  if (lote === null) throw invalido('lote_id', 'El lote no existe.');
+  return deps.almacen.guardar(uid, 'ciclo', id, datos, deps.ahora());
+}
+
+const GUARDAR = { lotes: guardarLote, labores: guardarLabor, ciclos: guardarCiclo } as const;
+
 /** `PUT /api/<recurso>/<id>`: crea o reemplaza, idempotente. El cliente no decide `uid` ni fechas del servidor. */
 export async function guardar(
   deps: Deps,
@@ -85,9 +101,7 @@ export async function guardar(
   cuerpo: unknown,
 ): Promise<Documento> {
   const idValido = idSchema.parse(id);
-  return recurso === 'lotes'
-    ? guardarLote(deps, uid, idValido, cuerpo)
-    : guardarLabor(deps, uid, idValido, cuerpo);
+  return GUARDAR[recurso](deps, uid, idValido, cuerpo);
 }
 
 /** `DELETE /api/<recurso>/<id>`: borrado lógico; 404 si no existe (o es de otro usuario). */

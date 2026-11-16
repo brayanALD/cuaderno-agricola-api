@@ -43,6 +43,8 @@ describe('produccionDeLote (RF-04 en el servidor)', () => {
         { mes: '2026-10', kg: 12.5 },
         { mes: '2026-11', kg: 0.3 },
       ],
+      costo_total: 0,
+      costo_por_kg: 0,
     });
   });
 
@@ -57,6 +59,49 @@ describe('produccionDeLote (RF-04 en el servidor)', () => {
     expect((await produccionDeLote(deps, 'u1', 'lote-1')).total_kg).toBe(10);
   });
 
+  it('suma el costo de TODAS las labores vivas y lo divide por los kilos cosechados (D93)', async () => {
+    const { deps } = crearEntorno();
+    await guardar(deps, 'u1', 'lotes', 'lote-1', lote);
+    await guardar(deps, 'u1', 'labores', 'a', cosecha('2026-10-05', 40, { costo: 20000 }));
+    await guardar(
+      deps,
+      'u1',
+      'labores',
+      'b',
+      cosecha('2026-10-06', 5, { tipo: 'abono', costo: 30000 }),
+    );
+    await guardar(deps, 'u1', 'labores', 'c', cosecha('2026-10-07', 5, { tipo: 'riego' }));
+    await guardar(
+      deps,
+      'u1',
+      'labores',
+      'd',
+      cosecha('2026-10-08', 5, { tipo: 'poda', costo: 99 }),
+    );
+    await deps.almacen.marcarBorrado('u1', 'labor', 'd', deps.ahora());
+
+    const produccion = await produccionDeLote(deps, 'u1', 'lote-1');
+
+    expect(produccion.costo_total).toBe(50000);
+    expect(produccion.costo_por_kg).toBe(1250);
+  });
+
+  it('con costos pero sin cosecha, el costo por kg es null (no se divide por cero)', async () => {
+    const { deps } = crearEntorno();
+    await guardar(deps, 'u1', 'lotes', 'lote-1', lote);
+    await guardar(
+      deps,
+      'u1',
+      'labores',
+      'a',
+      cosecha('2026-10-05', 5, { tipo: 'abono', costo: 8000 }),
+    );
+
+    const produccion = await produccionDeLote(deps, 'u1', 'lote-1');
+
+    expect([produccion.costo_total, produccion.costo_por_kg]).toEqual([8000, null]);
+  });
+
   it('un lote sin cosechas tiene total 0', async () => {
     const { deps } = crearEntorno();
     await guardar(deps, 'u1', 'lotes', 'lote-1', lote);
@@ -65,6 +110,8 @@ describe('produccionDeLote (RF-04 en el servidor)', () => {
       lote_id: 'lote-1',
       total_kg: 0,
       por_mes: [],
+      costo_total: 0,
+      costo_por_kg: null,
     });
   });
 

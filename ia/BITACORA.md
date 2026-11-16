@@ -148,6 +148,11 @@ Propósito: soportar «¿Olvidaste tu contraseña?» en la app (P14). Con prueba
 `app/api/auth/recuperar/route.ts`; doble en memoria con `recuperaciones`. `npm run check`: 142 pruebas. Se redesplegó en Vercel subiendo solo los 7 archivos cambiados (el resto por `sha`).
 Prueba contra producción: 200 para cuenta existente y para inexistente, 400 correo inválido y cuerpo no JSON. **No probado:** la entrega real del correo.
 
+## 2026-11-16 · Cuaderno agrícola A1–A4 (D93)
+Propósito: aceptar finca, producto, carencia, costo y el recurso `ciclos` sin romper clientes antiguos.
+Evidencia: `src/schemas/opcionales.ts`, `ciclo.ts`, `app/api/ciclos/**`, `sincronizacionService`, `produccionService`.
+Validación: `npm run check` en verde (163 pruebas). Sin desplegar todavía.
+
 ## Plantilla para próximas entradas
 
 ```text

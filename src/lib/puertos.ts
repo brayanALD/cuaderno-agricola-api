@@ -41,7 +41,7 @@ export interface ProveedorAuth {
   verificar(token: string): Promise<Identidad>;
 }
 
-export type Coleccion = 'lote' | 'labor';
+export type Coleccion = 'lote' | 'labor' | 'ciclo';
 
 /** Documento privado: campos del recurso más los que pone el servidor. */
 export type Documento = Readonly<Record<string, unknown>> & {

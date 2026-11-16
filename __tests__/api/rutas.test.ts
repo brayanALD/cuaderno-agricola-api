@@ -197,6 +197,8 @@ describe('sincronización de punta a punta', () => {
       lote_id: 'lote-1',
       total_kg: 12.5,
       por_mes: [{ mes: '2026-10', kg: 12.5 }],
+      costo_total: 0,
+      costo_por_kg: 0,
     });
     expect(borrado.status).toBe(200);
     expect(await borrado.json()).toEqual({ ok: true });

@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { esFechaValida } from './fechas';
+import { textoOpcional } from './opcionales';
 
 const OBLIGATORIO = 'Este campo es obligatorio.';
 const SOLO_NUMERO = 'Escribe un número.';
@@ -18,6 +19,8 @@ const texto = (max: number) =>
 export const loteSchema = z.object({
   nombre: texto(60),
   cultivo: texto(60),
+  /** Finca a la que pertenece el lote, para agruparlos (D93). */
+  finca: textoOpcional(60),
   area_m2: numero()
     .int({ error: 'El área debe ser un número entero de m².' })
     .positive({ error: 'El área debe ser mayor que 0.' }),
