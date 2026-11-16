@@ -165,6 +165,13 @@ Validación: `npm run check` en verde (280 pruebas). SIN probar con Firestore re
 Decisión: D96–D101. Vercel NO se conectó al repositorio (ver D100).
 Rechazos/correcciones: el doble en memoria lanzaba síncrono en vez de rechazar la promesa como Firestore; `dobles.ts` pasó de 300 líneas y se dividió.
 
+## 2026-11-16 · Verificación y despliegue de C1–C6 (D96–D101)
+Propósito: validar el adaptador de Firestore, desplegar índices y API, y comprobar producción.
+Evidencia: emuladores de Firebase arrancados por la IA por orden de Brayan; `scripts/humo.mjs` 26/26 (incluye fecha futura, paginación con cursor, cascada, nombre liberado y carrera 200/409); un script extra contra el emulador cubrió envío por lotes, versión base, renombrar/borrar liberando el nombre, cascada de ciclos y el contrato. Índices de `labor` desplegados con `firebase_deploy only=firestore` (4 READY). Despliegue de producción `dpl_32PH6ixMRBkx6kaNBHMkd7rXvs6u` (16 archivos en línea, el resto por sha). Verificación en producción con una cuenta de prueba nueva: unicidad y carrera, versión base (409), fecha futura (400), `POST /api/sync` con el resultado del contrato, cascada de labores y ciclos, y las 5 formas de la consulta filtrada con paginación.
+Validación: todo en orden en emulador y producción. CI de GitHub (consultado con la API pública a petición de Brayan): `success` en ambos repos para los commits `085fc77` y `bd2d57c`.
+Decisión: Vercel sigue sin conectarse al repositorio (ver D100); queda en el panel de Vercel. `next dev` añadió un bloque a `AGENTS.md` (sin commit; el clasificador impidió revertirlo).
+Rechazos/correcciones: la cuenta de prueba anterior de producción ya no existía (401): se creó `verif.api.<marca>@example.com`, que hay que borrar de Firebase Auth al final.
+
 ## Plantilla para próximas entradas
 
 ```text
