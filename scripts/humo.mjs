@@ -103,6 +103,37 @@ await paso('PUT cosecha 2', 200, '/api/labores/c2', {
   token,
   cuerpo: cosecha('2026-11-02', 8.25),
 });
+await paso('PUT cosecha con fecha futura → 400 (D96)', 400, '/api/labores/c-futura', {
+  metodo: 'PUT',
+  token,
+  cuerpo: cosecha('2099-01-01', 1),
+});
+// Consulta de labores (D97). El emulador no exige índices compuestos; el Firestore real sí (firestore.indexes.json).
+const primera = await paso(
+  'GET labores por lote y tipo, de 1 en 1',
+  200,
+  '/api/labores?lote_id=lote-humo&tipo=cosecha&limite=1',
+  { token },
+);
+if (primera?.items?.length !== 1 || primera?.items?.[0]?.id !== 'c2' || !primera?.siguiente) {
+  fallos += 1;
+  escribir('FALLA la primera página debía traer solo c2 (la más reciente) y un cursor');
+}
+const segunda = await paso(
+  'GET labores, página siguiente con cursor',
+  200,
+  `/api/labores?lote_id=lote-humo&tipo=cosecha&limite=1&cursor=${encodeURIComponent(primera?.siguiente ?? '')}`,
+  { token },
+);
+if (
+  segunda?.items?.length !== 1 ||
+  segunda?.items?.[0]?.id !== 'c1' ||
+  segunda?.siguiente !== null
+) {
+  fallos += 1;
+  escribir('FALLA la segunda página debía traer solo c1 y ningún cursor');
+}
+await paso('GET labores con limite=0 → 400', 400, '/api/labores?limite=0', { token });
 const lista = await paso('GET lotes', 200, '/api/lotes', { token });
 escribir(
   `      lotes devueltos: ${String(lista?.items?.length)}, servidor_ahora: ${String(lista?.servidor_ahora)}`,
@@ -117,6 +148,41 @@ await paso('GET producción de un lote borrado → 404', 404, '/api/lotes/lote-h
   token,
 });
 await paso('DELETE de algo inexistente → 404', 404, '/api/lotes/nada', { metodo: 'DELETE', token });
+// Borrado en cascada (D99) y nombre liberado (D98).
+const tras = await paso(
+  'GET labores del lote borrado → ya no hay vivas',
+  200,
+  '/api/labores?lote_id=lote-humo',
+  { token },
+);
+if (tras?.items?.length !== 0) {
+  fallos += 1;
+  escribir(
+    `FALLA el borrado del lote debía borrar sus labores; quedan ${String(tras?.items?.length)}`,
+  );
+}
+await paso('PUT otro lote con el nombre del borrado → 200', 200, '/api/lotes/lote-otro', {
+  metodo: 'PUT',
+  token,
+  cuerpo: lote,
+});
+// Unicidad atómica (D98): dos escrituras SIMULTÁNEAS con el mismo nombre; exactamente una debe entrar.
+const nombreCarrera = { ...lote, nombre: `Carrera ${String(Date.now())}` };
+const carrera = await Promise.all(
+  ['carrera-a', 'carrera-b'].map((id) =>
+    fetch(`${base}/api/lotes/${id}`, {
+      method: 'PUT',
+      headers: { 'content-type': 'application/json', authorization: `Bearer ${token}` },
+      body: JSON.stringify(nombreCarrera),
+    }).then((r) => r.status),
+  ),
+);
+const gano = carrera.filter((estado) => estado === 200).length;
+const perdio = carrera.filter((estado) => estado === 409).length;
+if (gano !== 1 || perdio !== 1) fallos += 1;
+escribir(
+  `${gano === 1 && perdio === 1 ? 'OK   ' : 'FALLA'} carrera por el mismo nombre: ${carrera.join(' y ')} (esperado 200 y 409)`,
+);
 
 escribir(fallos === 0 ? '\nTodo en orden.' : `\n${String(fallos)} paso(s) fallaron.`);
 process.exit(fallos === 0 ? 0 : 1);

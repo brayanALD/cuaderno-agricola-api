@@ -1,0 +1,33 @@
+name: Verificación
+
+# Corre `npm run check` (tipos, lint, formato, pruebas con cobertura y pruebas del hook) y la compilación de
+# Next.js en cada push a main y en cada pull request (D100). Es el mismo comando que se corre a mano.
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: verificacion-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  NEXT_TELEMETRY_DISABLED: '1'
+
+jobs:
+  verificar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run check
+      # La misma compilación que hace Vercel: sin variables de entorno, porque Firebase no se toca al compilar.
+      - run: npm run build

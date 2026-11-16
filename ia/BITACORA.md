@@ -158,6 +158,13 @@ Propósito: control de versión opcional (409 por conflicto) y envío por lotes 
 Evidencia: `src/schemas/version.ts`, `src/services/cambiosService.ts`, `app/api/sync/route.ts`, `Almacen.guardar(..., verificar)`.
 Validación: `npm run check` en verde (185 pruebas). La comprobación atómica en Firestore (`almacenFirestore`) solo se puede probar con el emulador o desplegado. Sin desplegar todavía.
 
+## 2026-11-16 · Robustez C1–C6 (D96–D101)
+Propósito: fecha futura en el servidor, consulta de labores con paginación, unicidad de nombre atómica, borrado en cascada, CI y prueba de contrato.
+Evidencia: `schemas/fechas.ts`, `services/consultaLaboresService.ts`, `lib/firebase/almacenFirestore.ts` (reservas, consulta y borrado por filtro), `firestore.indexes.json`, `contrato/contrato.json`, `.github/workflows/verificacion.yml`, `scripts/humo.mjs`.
+Validación: `npm run check` en verde (280 pruebas). SIN probar con Firestore real ni emulador: el adaptador (transacciones con reservas, consulta con cursor, borrado por tandas) y los índices; para eso se ampliaron los pasos de `scripts/humo.mjs`. Sin desplegar. La primera ejecución del CI no se pudo observar desde aquí.
+Decisión: D96–D101. Vercel NO se conectó al repositorio (ver D100).
+Rechazos/correcciones: el doble en memoria lanzaba síncrono en vez de rechazar la promesa como Firestore; `dobles.ts` pasó de 300 líneas y se dividió.
+
 ## Plantilla para próximas entradas
 
 ```text

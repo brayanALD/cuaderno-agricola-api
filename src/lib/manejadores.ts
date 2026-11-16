@@ -10,6 +10,7 @@ import {
 } from '@/services/authService';
 import { borrarImagen, subirImagen, TAMANO_MAXIMO_IMAGEN } from '@/services/imagenesService';
 import { aplicarCambios } from '@/services/cambiosService';
+import { listarLabores } from '@/services/consultaLaboresService';
 import { produccionDeLote } from '@/services/produccionService';
 import { borrar, guardar, listar, type Recurso } from '@/services/sincronizacionService';
 
@@ -79,6 +80,8 @@ export function crearManejadores(obtener: ObtenerDependencias) {
     listar: (recurso: Recurso) =>
       privada(obtener, async ({ deps, request, identidad }) => {
         const consulta = Object.fromEntries(new URL(request.url).searchParams);
+        // Las labores admiten además filtros y paginación (D97); sin ellos es la sincronización de 9.3.
+        if (recurso === 'labores') return json(await listarLabores(deps, identidad.uid, consulta));
         return json(await listar(deps, identidad.uid, recurso, consulta));
       }),
     guardar: (recurso: Recurso) =>

@@ -54,6 +54,41 @@ export type Documento = Readonly<Record<string, unknown>> & {
 /** Filtros de igualdad (con Firestore no necesitan índice compuesto). */
 export type Filtros = Readonly<Record<string, string | null>>;
 
+/**
+ * Clave única dentro del usuario (D98): dos documentos de la misma colección no pueden tener el mismo valor
+ * normalizado en `campo`. La reserva vive en un documento índice que se escribe en la MISMA transacción que el
+ * documento, así que dos escrituras simultáneas no pueden quedarse las dos con el nombre.
+ */
+export interface Unicidad {
+  readonly campo: string;
+  /** Normaliza el valor: dos valores con la misma clave chocan. */
+  readonly clave: (valor: string) => string;
+  /** Lo que se lanza si otro documento VIVO ya tiene esa clave. */
+  readonly conflicto: () => Error;
+}
+
+export interface OpcionesGuardar {
+  /**
+   * Recibe el documento previo (o `null`) DENTRO de la misma transacción y puede lanzar para impedir la
+   * escritura: así la comprobación de versión (D94) y la escritura son una sola operación.
+   */
+  readonly verificar?: (previo: Documento | null) => void;
+  readonly unicidad?: Unicidad;
+}
+
+/** Consulta paginada de documentos vivos, del más nuevo al más antiguo por `campoOrden` y luego por id (D97). */
+export interface ConsultaOrdenada {
+  /** Igualdades; `deleted_at: null` deja fuera los borrados. */
+  readonly filtros: Filtros;
+  readonly campoOrden: string;
+  /** Rango inclusivo sobre `campoOrden`. */
+  readonly desde?: string;
+  readonly hasta?: string;
+  /** Sigue después de este documento (el último de la página anterior). */
+  readonly despues?: { readonly valor: string; readonly id: string };
+  readonly limite: number;
+}
+
 /** Documentos privados bajo `usuarios/{uid}/<coleccion>/{id}`: el aislamiento lo da la ruta. */
 export interface Almacen {
   /** `updated_at >= since` (inclusive), de menor a mayor; **incluye** los borrados lógicos. */
@@ -65,21 +100,32 @@ export interface Almacen {
   ): Promise<Documento[]>;
   obtener(uid: string, coleccion: Coleccion, id: string): Promise<Documento | null>;
   buscar(uid: string, coleccion: Coleccion, filtros: Filtros): Promise<Documento[]>;
-  /**
-   * Crea o reemplaza (idempotente): conserva `created_at`, fija `updated_at` y `deleted_at = null`.
-   * `verificar` (opcional) recibe el documento previo (o `null`) DENTRO de la misma transacción y puede
-   * lanzar para impedir la escritura: así la comprobación de versión (D94) y la escritura son una sola operación.
-   */
+  /** Crea o reemplaza (idempotente): conserva `created_at`, fija `updated_at` y `deleted_at = null`. */
   guardar(
     uid: string,
     coleccion: Coleccion,
     id: string,
     campos: Readonly<Record<string, unknown>>,
     ahora: string,
-    verificar?: (previo: Documento | null) => void,
+    opciones?: OpcionesGuardar,
   ): Promise<Documento>;
-  /** Borrado lógico; `false` si el documento no existe. */
-  marcarBorrado(uid: string, coleccion: Coleccion, id: string, ahora: string): Promise<boolean>;
+  /** Borrado lógico; `false` si el documento no existe. Con `unicidad`, libera la clave que tenía (D98). */
+  marcarBorrado(
+    uid: string,
+    coleccion: Coleccion,
+    id: string,
+    ahora: string,
+    unicidad?: Unicidad,
+  ): Promise<boolean>;
+  /** Borrado lógico de todos los documentos vivos que cumplan los filtros (D99). Devuelve cuántos. */
+  marcarBorradoPorFiltro(
+    uid: string,
+    coleccion: Coleccion,
+    filtros: Filtros,
+    ahora: string,
+  ): Promise<number>;
+  /** Una página de la consulta (D97). */
+  consultar(uid: string, coleccion: Coleccion, consulta: ConsultaOrdenada): Promise<Documento[]>;
 }
 
 export interface ImagenSubida {

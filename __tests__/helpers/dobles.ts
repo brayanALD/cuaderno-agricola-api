@@ -1,11 +1,8 @@
 import { ErrorHttp } from '@/lib/errores';
+import { AlmacenEnMemoria } from './almacenEnMemoria';
 import type {
-  Almacen,
   AlmacenImagenes,
-  Coleccion,
   Dependencias,
-  Documento,
-  Filtros,
   Identidad,
   ImagenSubida,
   ProveedorAuth,
@@ -95,74 +92,7 @@ export class AuthEnMemoria implements ProveedorAuth {
   }
 }
 
-/** Almacén en memoria con la misma semántica que Firestore bajo `usuarios/{uid}/…`. */
-export class AlmacenEnMemoria implements Almacen {
-  private readonly documentos = new Map<string, Documento>();
-
-  private clave(uid: string, coleccion: Coleccion, id: string): string {
-    return `${uid}/${coleccion}/${id}`;
-  }
-
-  private delUsuario(uid: string, coleccion: Coleccion): Documento[] {
-    const prefijo = `${uid}/${coleccion}/`;
-    return [...this.documentos.entries()].filter(([k]) => k.startsWith(prefijo)).map(([, d]) => d);
-  }
-
-  listarDesde(uid: string, coleccion: Coleccion, since: string | null, limite: number) {
-    const docs = this.delUsuario(uid, coleccion)
-      .filter((d) => since === null || d.updated_at >= since)
-      .sort((a, b) => a.updated_at.localeCompare(b.updated_at) || a.id.localeCompare(b.id));
-    return Promise.resolve(docs.slice(0, limite));
-  }
-
-  obtener(uid: string, coleccion: Coleccion, id: string) {
-    return Promise.resolve(this.documentos.get(this.clave(uid, coleccion, id)) ?? null);
-  }
-
-  buscar(uid: string, coleccion: Coleccion, filtros: Filtros) {
-    const docs = this.delUsuario(uid, coleccion).filter((d) =>
-      Object.entries(filtros).every(([campo, valor]) => d[campo] === valor),
-    );
-    return Promise.resolve(docs);
-  }
-
-  guardar(
-    uid: string,
-    coleccion: Coleccion,
-    id: string,
-    campos: Record<string, unknown>,
-    ahora: string,
-    verificar?: (previo: Documento | null) => void,
-  ) {
-    const previo = this.documentos.get(this.clave(uid, coleccion, id));
-    verificar?.(previo ?? null);
-    const documento: Documento = {
-      ...campos,
-      id,
-      created_at: previo?.created_at ?? ahora,
-      updated_at: ahora,
-      deleted_at: null,
-    };
-    this.documentos.set(this.clave(uid, coleccion, id), documento);
-    return Promise.resolve(documento);
-  }
-
-  marcarBorrado(uid: string, coleccion: Coleccion, id: string, ahora: string) {
-    const previo = this.documentos.get(this.clave(uid, coleccion, id));
-    if (!previo) return Promise.resolve(false);
-    this.documentos.set(this.clave(uid, coleccion, id), {
-      ...previo,
-      updated_at: ahora,
-      deleted_at: ahora,
-    });
-    return Promise.resolve(true);
-  }
-
-  /** Para que las pruebas lean sin pasar por el puerto. */
-  todos(): Documento[] {
-    return [...this.documentos.values()];
-  }
-}
+export { AlmacenEnMemoria } from './almacenEnMemoria';
 
 export class ImagenesEnMemoria implements AlmacenImagenes {
   readonly subidas = new Map<string, { bytes: number; contentType: string }>();

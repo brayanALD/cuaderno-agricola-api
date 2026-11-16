@@ -20,8 +20,10 @@ Errores siempre como `{ "error", "detalles"? }`.
 | `POST /api/auth/refresh` | no | Renueva el token |
 | `POST /api/auth/recuperar` | no | Manda el correo para crear una contraseña nueva; responde 200 exista o no la cuenta |
 | `GET /api/auth/yo` | sí | Usuario de la sesión |
-| `GET /api/lotes` · `GET /api/labores` | sí | Cambios desde `?since=` (inclusivo), con borrados lógicos |
-| `PUT` / `DELETE /api/lotes/:id` · `/api/labores/:id` | sí | Crear o reemplazar (idempotente) y borrado lógico |
+| `GET /api/lotes` · `GET /api/labores` · `GET /api/ciclos` | sí | Cambios desde `?since=` (inclusivo), con borrados lógicos |
+| `GET /api/labores?lote_id&tipo&desde&hasta&limite&cursor` | sí | Consulta paginada de labores vivas, de la más reciente a la más antigua (necesita los índices de `firestore.indexes.json`) |
+| `PUT` / `DELETE /api/lotes/:id` · `/api/labores/:id` · `/api/ciclos/:id` | sí | Crear o reemplazar (idempotente) y borrado lógico; borrar un lote borra sus labores y ciclos |
+| `POST /api/sync` | sí | Hasta 50 cambios en un solo viaje, cada uno con su resultado |
 | `GET /api/lotes/:id/produccion` | sí | Kilos cosechados por mes y total |
 | `POST /api/imagenes` | sí | Sube una imagen (bytes crudos, JPEG/PNG/WebP, hasta ~4 MB) al Blob |
 | `DELETE /api/imagenes?url=` | sí | Borra una imagen propia (403 si no lo es) |
@@ -51,7 +53,9 @@ Variables (en Vercel, nunca en el repositorio): `FIREBASE_PROJECT_ID`, `FIREBASE
 npm run check      # tipos + lint + formato + pruebas + hook de seguridad
 ```
 
-**142 pruebas**, cobertura de **97,9 %** de sentencias y **92 %** de ramas (umbral: 80 %). Incluyen lo mínimo exigido: 401 sin token, 400 de validación y aislamiento entre usuarios.
+**280 pruebas**, cobertura de **98,5 %** de sentencias y **94,7 %** de ramas (umbral: 80 %). Incluyen lo mínimo exigido: 401 sin token, 400 de validación y aislamiento entre usuarios, y una prueba de contrato con la app (`contrato/contrato.json`).
+
+En GitHub, `.github/workflows/verificacion.yml` corre `npm run check` y `npm run build` en cada push a `main` y en cada pull request.
 
 ## Despliegue
 
